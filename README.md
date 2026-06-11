@@ -15,19 +15,23 @@ automatically to the [OnlineHashCrack](https://onlinehashcrack.com) private API.
 - Automatic submission to OHC (`add_tasks`), batched at 50 hashes/request.
 - Accepted / skipped / rejected metrics plus `request_id`s.
 - "My tasks" tab listing your OHC tasks (`list_tasks`).
-- The API key stays **server-side** (Streamlit secrets) — never shown in the UI.
+- **Each user enters their own API key** in the sidebar (password field). The key
+  is used only for that session's requests and is never stored, logged, or shared
+  — so the app can run as a public, multi-user deployment.
 
 ## Deploy on Streamlit Community Cloud
 
 1. Push this repo to GitHub (already done if you're reading this there).
 2. Go to <https://share.streamlit.io/new>.
 3. Pick this repo, branch `main`, main file `streamlit_app.py`.
-4. Open **Advanced settings → Secrets** and paste:
-   ```toml
-   OHC_API_KEY = "sk_your_key_here"
-   ```
-5. Deploy. The `packages.txt` file makes Streamlit Cloud install `hcxtools`
+4. Deploy. The `packages.txt` file makes Streamlit Cloud install `hcxtools`
    (which provides `hcxpcapngtool`) automatically.
+5. Open the app and paste your `sk_...` key in the sidebar. No secrets config
+   needed.
+
+> Optional: if you'd rather pre-fill the key for a single-user/private deploy,
+> set `OHC_API_KEY` under **Advanced settings → Secrets**; it just becomes the
+> default value of the sidebar field.
 
 ## Run locally
 
@@ -39,19 +43,19 @@ pip install -r requirements.txt
 # hcxpcapngtool (Debian/Ubuntu):
 sudo apt-get install -y hcxtools   # macOS: brew install hcxtools
 
-# secrets:
-cp .streamlit/secrets.toml.example .streamlit/secrets.toml
-# edit and set OHC_API_KEY=sk_...
-
 streamlit run streamlit_app.py
+# then paste your sk_... key in the sidebar
 ```
 
 ## Configuration
 
-| Secret / env var | Required | Description                                   |
-|------------------|----------|-----------------------------------------------|
-| `OHC_API_KEY`    | yes      | Your `sk_...` OnlineHashCrack private API key. |
-| `OHC_API_URL`    | no       | API base endpoint (defaults to the v2 URL).    |
+No configuration is required — enter the API key in the UI. The following are
+optional defaults (Streamlit secret or env var):
+
+| Secret / env var | Required | Description                                       |
+|------------------|----------|---------------------------------------------------|
+| `OHC_API_KEY`    | no       | Pre-fills the sidebar key field (single-user use). |
+| `OHC_API_URL`    | no       | API base endpoint (defaults to the v2 URL).        |
 
 ## Notes
 
