@@ -47,13 +47,16 @@ and/or [Stanev wpa-sec](https://wpa-sec.stanev.org/).
 
 ## Deploy on Hugging Face Spaces
 
-This repo includes a `Dockerfile` (SDK: docker, port 7860). After pushing:
+This repo includes a `Dockerfile` (SDK: docker, port 7860). The Space **`Lucaskefler/pcaper`** is updated automatically when you push to **`main`** (see `.github/workflows/sync-to-hf.yml`).
 
-1. Create or open your Space and connect this repository.
-2. Under **Settings → Repository secrets**, add optional defaults:
+1. Create or open the Space on Hugging Face (Docker SDK, port 7860).
+2. Add GitHub repository secret **`HF_TOKEN`** (Settings → Secrets and variables → Actions) with a Hugging Face token that has **write** access to `Lucaskefler/pcaper`.
+3. Under the Space **Settings → Repository secrets**, add optional app defaults:
    - `OHC_API_KEY`
    - `STANEV_API_KEY`
-3. Open the app and use the sidebar to choose **OnlineHashCrack**, **Stanev**, or **Both**, then select multiple `.pcap` files and submit once.
+4. Push to `main` (or run the **Sync to Hugging Face Space** workflow manually). The action mirrors the repo to the Space; files removed on `main` are removed on the Space too.
+
+> If the Space was previously linked to GitHub directly, disable that link to avoid conflicting deploys with the GitHub Action.
 
 ## Run locally
 

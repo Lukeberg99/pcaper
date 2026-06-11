@@ -5,13 +5,30 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: hf-sync-${{ github.repository }}
+  cancel-in-progress: true
+
 jobs:
   sync:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - uses: huggingface/hub-sync@v0.1.0
+      - name: Require HF_TOKEN
+        run: |
+          if [ -z "${{ secrets.HF_TOKEN }}" ]; then
+            echo "::error::HF_TOKEN secret is missing. Add it under Settings → Secrets → Actions."
+            exit 1
+          fi
+
+      - name: Verify Docker image builds
+        run: docker build -t pcaper-test .
+
+      - uses: huggingface/hub-sync@6fbce0a787a7146710e588abe7a4fd5eca07f47c # v0.1.0
         with:
           github_repo_id: ${{ github.repository }}
           huggingface_repo_id: Lucaskefler/pcaper
