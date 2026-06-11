@@ -20,8 +20,12 @@ from ohc_client import OHCClient, OHCError
 ALLOWED_EXTENSIONS = ("pcap", "pcapng", "cap")
 
 
-def get_api_key() -> str:
-    """Read the OHC API key from Streamlit secrets, falling back to env var."""
+def get_default_api_key() -> str:
+    """Optional default OHC API key from Streamlit secrets / env.
+
+    On a public, multi-user deployment leave these unset so each user enters
+    their own key in the sidebar. If set, it just pre-fills the input.
+    """
     try:
         if "OHC_API_KEY" in st.secrets:
             return str(st.secrets["OHC_API_KEY"])
@@ -40,8 +44,8 @@ def get_api_url() -> str:
     return os.environ.get("OHC_API_URL", "https://api.onlinehashcrack.com/v2")
 
 
-def make_client() -> OHCClient:
-    return OHCClient(api_key=get_api_key(), base_url=get_api_url())
+def make_client(api_key: str) -> OHCClient:
+    return OHCClient(api_key=api_key, base_url=get_api_url())
 
 
 st.set_page_config(page_title="PCAPER → HashCrack", page_icon="📡", layout="centered")
@@ -52,8 +56,22 @@ st.caption(
     "OnlineHashCrack."
 )
 
+with st.sidebar:
+    st.header("Settings")
+    api_key = st.text_input(
+        "OnlineHashCrack API key",
+        value=get_default_api_key(),
+        type="password",
+        placeholder="sk_...",
+        help=(
+            "Your personal OHC key (format sk_...). It is used only for your "
+            "requests in this session and is never stored or shared."
+        ),
+    ).strip()
+    st.caption("Get a key at onlinehashcrack.com → API Key management.")
+
 tool_ok = pcap_converter.is_available()
-key_ok = bool(get_api_key())
+key_ok = bool(api_key)
 
 if not tool_ok:
     st.error(
@@ -61,10 +79,7 @@ if not tool_ok:
         "by `packages.txt` (hcxtools). Locally: `sudo apt-get install hcxtools`."
     )
 if not key_ok:
-    st.error(
-        "OHC API key not configured. Add `OHC_API_KEY` to Streamlit secrets "
-        "(App → Settings → Secrets) or set the `OHC_API_KEY` env var."
-    )
+    st.info("Enter your OnlineHashCrack API key in the sidebar to begin.")
 
 tab_upload, tab_tasks = st.tabs(["Upload & submit", "My tasks"])
 
@@ -119,7 +134,7 @@ with tab_upload:
         else:
             with st.spinner(f"Submitting {len(unique)} hash(es) to OnlineHashCrack…"):
                 try:
-                    result = make_client().chunk_and_submit(
+                    result = make_client(api_key).chunk_and_submit(
                         unique, pcap_converter.ALGO_MODE
                     )
                 except OHCError as exc:
@@ -144,7 +159,7 @@ with tab_tasks:
         st.session_state["_refresh_tasks"] = True
     if key_ok:
         try:
-            data = make_client().list_tasks()
+            data = make_client(api_key).list_tasks()
             tasks = data.get("tasks", [])
             if tasks:
                 st.dataframe(
