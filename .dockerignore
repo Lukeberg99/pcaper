@@ -1,0 +1,9 @@
+.venv/
+.git/
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+*.pcap
+*.pcapng
+*.cap
+*.hc22000
