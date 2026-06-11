@@ -1,3 +1,14 @@
+---
+title: PCAPER
+emoji: 📡
+colorFrom: blue
+colorTo: indigo
+sdk: streamlit
+sdk_version: 1.40.0
+app_file: streamlit_app.py
+pinned: false
+---
+
 # PCAPER
 
 A simple **Streamlit** app to upload WiFi handshake captures (`.pcap`,
