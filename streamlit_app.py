@@ -103,6 +103,126 @@ def submit_to_stanev(client: StanevClient, files) -> list[dict]:
         return client.upload_many(items)
 
 
+def render_ohc_results(api_key: str) -> None:
+    st.subheader("OnlineHashCrack")
+    if st.button("Refresh OHC results", key="refresh_ohc_results"):
+        st.session_state["_refresh_ohc_results"] = True
+
+    try:
+        data = make_ohc_client(api_key).list_tasks()
+    except OHCError as exc:
+        st.error(str(exc))
+        if getattr(exc, "payload", None):
+            request_id = exc.payload.get("request_id")
+            if request_id:
+                st.caption(f"request_id: {request_id}")
+        return
+
+    tasks = data.get("tasks", [])
+    if not tasks:
+        st.info("No OnlineHashCrack tasks yet.")
+        return
+
+    all_rows, found_rows = OHCClient.task_rows(tasks)
+    found_count = len(found_rows)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total tasks", len(all_rows))
+    c2.metric("Found", found_count)
+    c3.metric("Pending / other", len(all_rows) - found_count)
+
+    if found_rows:
+        st.markdown("**Recovered passwords**")
+        st.dataframe(
+            found_rows,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Password": st.column_config.TextColumn("Password", width="medium"),
+            },
+        )
+    else:
+        st.info("No cracked passwords yet. Tasks still in queue or in progress.")
+
+    with st.expander("All tasks", expanded=not found_rows):
+        st.dataframe(all_rows, use_container_width=True, hide_index=True)
+
+
+def render_stanev_results(api_key: str) -> None:
+    st.subheader("Stanev (wpa-sec)")
+    if st.button("Refresh Stanev results", key="refresh_stanev_results"):
+        st.session_state["_refresh_stanev_results"] = True
+
+    client = make_stanev_client(api_key)
+    try:
+        with st.spinner("Loading Stanev submissions…"):
+            nets = client.list_my_nets()
+        with st.spinner("Loading cracked passwords…"):
+            founds = client.download_founds()
+    except StanevError as exc:
+        st.error(str(exc))
+        return
+
+    found_nets = [row for row in nets if row["status"] == "found"]
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Submitted nets", len(nets))
+    c2.metric("Cracked (my nets)", len(found_nets))
+    c3.metric("Potfile entries", len(founds))
+
+    if found_nets:
+        st.markdown("**Cracked from my submissions**")
+        st.dataframe(
+            [
+                {
+                    "BSSID": row["bssid"],
+                    "SSID": row["ssid"],
+                    "Type": row["type"],
+                    "Password": row["password"],
+                    "Key info": row["key_info"],
+                    "Updated": row["timestamp"],
+                }
+                for row in found_nets
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.info("No cracked networks in your Stanev submissions yet.")
+
+    if founds:
+        st.markdown("**Downloaded potfile (all founds)**")
+        st.dataframe(
+            [
+                {
+                    "BSSID": row["bssid"],
+                    "Client MAC": row["client_mac"],
+                    "SSID": row["ssid"],
+                    "Password": row["password"],
+                }
+                for row in founds
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    with st.expander("All my submissions", expanded=not found_nets):
+        st.dataframe(
+            [
+                {
+                    "BSSID": row["bssid"],
+                    "SSID": row["ssid"],
+                    "Type": row["type"],
+                    "Status": row["status"],
+                    "Password": row["password"] or "—",
+                    "Get works": row["get_works"],
+                    "Updated": row["timestamp"],
+                }
+                for row in nets
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+
 st.set_page_config(page_title="PCAPER → HashCrack", page_icon="📡", layout="centered")
 st.title("📡 PCAPER")
 st.caption(
@@ -158,7 +278,7 @@ can_submit = bool(
     submit_ohc is False or (tool_ok and ohc_key_ok)
 ) and bool(submit_stanev is False or stanev_key_ok)
 
-tab_upload, tab_tasks = st.tabs(["Upload & submit", "My OHC tasks"])
+tab_upload, tab_results = st.tabs(["Upload & submit", "Results"])
 
 with tab_upload:
     files = st.file_uploader(
@@ -245,41 +365,22 @@ with tab_upload:
                 st.success(
                     f"Stanev upload complete ({len(stanev_results)} file(s) processed)."
                 )
-                st.caption(
-                    "View cracked handshakes at "
-                    "[wpa-sec.stanev.org](https://wpa-sec.stanev.org/) with your key."
-                )
+                st.caption("Open the **Results** tab to view cracked passwords.")
 
-with tab_tasks:
-    if st.button("Refresh tasks", disabled=not ohc_key_ok):
-        st.session_state["_refresh_tasks"] = True
-    if ohc_key_ok:
-        try:
-            data = make_ohc_client(ohc_key).list_tasks()
-            tasks = data.get("tasks", [])
-            if tasks:
-                st.dataframe(
-                    [
-                        {
-                            "Created": t.get("created_at", ""),
-                            "Hash": (t.get("hash", "")[:24] + "…")
-                            if len(t.get("hash", "")) > 24
-                            else t.get("hash", ""),
-                            "Algorithm": f"{t.get('algorithm', '')} ({t.get('algomode', '')})",
-                            "Status": t.get("status", ""),
-                            "Last attack": t.get("lastAttack", ""),
-                        }
-                        for t in tasks
-                    ],
-                    use_container_width=True,
-                    hide_index=True,
-                )
-            else:
-                st.info("No OnlineHashCrack tasks yet.")
-        except OHCError as exc:
-            st.error(str(exc))
-    else:
-        st.info("Configure the OnlineHashCrack API key to list your tasks.")
+with tab_results:
+    ohc_tab, stanev_tab = st.tabs(["OnlineHashCrack", "Stanev (wpa-sec)"])
+
+    with ohc_tab:
+        if ohc_key_ok:
+            render_ohc_results(ohc_key)
+        else:
+            st.info("Enter your OnlineHashCrack API key in the sidebar to view results.")
+
+    with stanev_tab:
+        if stanev_key_ok:
+            render_stanev_results(stanev_key)
+        else:
+            st.info("Enter your Stanev (wpa-sec) key in the sidebar to view results.")
 
 st.divider()
 st.caption("Use restricted to handshakes you own or are authorized to test.")

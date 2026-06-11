@@ -63,6 +63,37 @@ class OHCClient:
     def list_tasks(self) -> dict:
         return self._post({"action": "list_tasks"})
 
+    @staticmethod
+    def task_password(task: dict) -> str:
+        """Return a recovered password when the API exposes one."""
+        for key in ("password", "psk", "plaintext", "result", "cracked_password", "pass"):
+            value = task.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return ""
+
+    @staticmethod
+    def task_rows(tasks: list[dict]) -> tuple[list[dict], list[dict]]:
+        """Split tasks into all rows and found-only rows for display."""
+        all_rows: list[dict] = []
+        found_rows: list[dict] = []
+        for task in tasks:
+            password = OHCClient.task_password(task)
+            status = str(task.get("status", "") or "")
+            row = {
+                "Created": task.get("created_at", ""),
+                "Hash": task.get("hash", ""),
+                "Algorithm": f"{task.get('algorithm', '')} ({task.get('algomode', '')})",
+                "Status": status,
+                "Password": password,
+                "Last attack": task.get("lastAttack", ""),
+                "Note": task.get("usernote", ""),
+            }
+            all_rows.append(row)
+            if password or status.lower() == "found":
+                found_rows.append(row)
+        return all_rows, found_rows
+
     def chunk_and_submit(self, hashes: list[str], algo_mode: int) -> dict:
         """Submit hashes in batches of MAX_HASHES_PER_REQUEST and merge results."""
         merged = {

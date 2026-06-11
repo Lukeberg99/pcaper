@@ -27,7 +27,7 @@ and/or [Stanev wpa-sec](https://wpa-sec.stanev.org/).
   de-duplicated, then submitted via `add_tasks` (batched at 50 hashes/request).
 - Stanev: raw `.pcap` / `.pcapng` / `.cap` uploads to wpa-sec.stanev.org.
 - Accepted / skipped / rejected metrics (OHC) and per-file upload status (Stanev).
-- "My OHC tasks" tab listing your OnlineHashCrack tasks (`list_tasks`).
+- **Results** tab with OnlineHashCrack task status and Stanev cracked passwords.
 - **Each user enters their own API keys** in the sidebar (password fields). Keys
   are used only for that session's requests and are never stored, logged, or shared
   — so the app can run as a public, multi-user deployment.
